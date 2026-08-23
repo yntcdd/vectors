@@ -46,12 +46,31 @@ class Particle:
         self.lifetime = lifetime
 
     def update(self):
+        gravity = Vector(0, 0.005)
+        self.velocity = self.velocity.add(gravity)
         self.position = self.position.add(self.velocity)
-        self.lifetime -= 1
+        self.lifetime -= 0.05
 
     def draw(self, surface):
         if self.lifetime > 0:
-            self.position.draw(surface, self.color, 3)
+            self.position.draw(surface, self.color, 1)
+
+    def trail(self, surface):
+        if self.lifetime > 0:
+            trail_length = 20
+
+            for i in range(trail_length):
+                trail_color = (self.color)
+                trail_position = self.position.subtract(
+                    self.velocity.multiply(i * 0.8)
+                )
+
+                pygame.draw.circle(
+                    surface,
+                    trail_color,
+                    (int(trail_position.x), int(trail_position.y)),
+                    2
+                )
 
 class Firework:
     def __init__(self, position):
@@ -60,15 +79,15 @@ class Firework:
         self.exploded = False
 
     def explode(self):
-        for _ in range(100):
+        for i in range(200):
             angle = random.uniform(0, 2 * math.pi)
-            speed = random.uniform(1, 5)
+            speed = random.uniform(1, 2)
             velocity = Vector(math.cos(angle) * speed, math.sin(angle) * speed)
             color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-            lifetime = random.randint(30, 60)
+            lifetime = random.randint(5, 10)
             self.particles.append(Particle(self.position, velocity, color, lifetime))
 
-fireworks = [Firework(Vector(WIDTH // 2, HEIGHT // 2))]
+fireworks = []
 radius = 25
 speed = 3
 
@@ -81,9 +100,13 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
-    screen.fill("white")
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:
+                fireworks.append(
+                    Firework(Vector(event.pos[0], event.pos[1]))
+                )
 
-    mouse_pos = pygame.mouse.get_pos()
+    screen.fill("white")
 
     for firework in fireworks:
         if firework.exploded == False:
@@ -93,6 +116,7 @@ while running:
         for particle in firework.particles:
             particle.update()
             particle.draw(screen)
+            particle.trail(screen)
             if particle.lifetime <= 0:
                 firework.particles.remove(particle)
             

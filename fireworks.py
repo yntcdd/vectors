@@ -8,7 +8,7 @@ WIDTH = 1920
 HEIGHT = 1080
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT),  vsync=1)
-pygame.display.set_caption("Vectors")
+pygame.display.set_caption("Fireworks")
 
 clock = pygame.time.Clock()
 font = pygame.font.Font(None, 36)
@@ -36,6 +36,29 @@ class Vector:
 
     def draw(self, surface, color, radius):
         pygame.draw.circle(surface, color, (int(self.x), int(self.y)), radius)
+
+
+class Particle:
+    def __init__(self, position, velocity, color, lifetime):
+        self.position = position
+        self.velocity = velocity
+        self.color = color
+        self.lifetime = lifetime
+
+    def update(self):
+        self.position = self.position.add(self.velocity)
+        self.lifetime -= 1
+
+    def draw(self, surface):
+        if self.lifetime > 0:
+            self.position.draw(surface, self.color, 3)
+
+class Firework:
+    def __init__(self, position):
+        self.position = position
+        self.particles = []
+
+    
 
 balls = [Vector(WIDTH // 2, HEIGHT // 2)]
 radius = 25

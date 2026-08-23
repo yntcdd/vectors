@@ -46,7 +46,7 @@ class Particle:
         self.lifetime = lifetime
 
     def update(self):
-        gravity = Vector(0, 0.005)
+        gravity = Vector(0, 0.01)
         self.velocity = self.velocity.add(gravity)
         self.position = self.position.add(self.velocity)
         self.lifetime -= 0.05
@@ -62,7 +62,7 @@ class Particle:
             for i in range(trail_length):
                 trail_color = (self.color)
                 trail_position = self.position.subtract(
-                    self.velocity.multiply(i * 0.8)
+                    self.velocity.multiply(i * 1)
                 )
 
                 pygame.draw.circle(
@@ -77,13 +77,17 @@ class Firework:
         self.position = position
         self.particles = []
         self.exploded = False
+        self.color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 
     def explode(self):
-        for i in range(200):
+
+        amount = random.randint(100, 300)
+
+        for i in range(amount):
             angle = random.uniform(0, 2 * math.pi)
-            speed = random.uniform(1, 2)
+            speed = random.uniform(amount / 150, amount / 75)
             velocity = Vector(math.cos(angle) * speed, math.sin(angle) * speed)
-            color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+            color = self.color
             lifetime = random.randint(5, 10)
             self.particles.append(Particle(self.position, velocity, color, lifetime))
 
@@ -106,7 +110,7 @@ while running:
                     Firework(Vector(event.pos[0], event.pos[1]))
                 )
 
-    screen.fill("white")
+    screen.fill("black")
 
     for firework in fireworks:
         if firework.exploded == False:

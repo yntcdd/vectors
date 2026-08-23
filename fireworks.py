@@ -96,20 +96,41 @@ class Starter:
         self.finalposition = position
         self.position = Vector(WIDTH / 2, HEIGHT)
         self.color = (255, 255, 255)
+        self.velocity = Vector(0, -5)
+        self.speed = 5
 
     def update(self):
         direction = self.finalposition.subtract(self.position)
         distance = direction.magnitude()
+        self.speed = min(distance / 50, 5)
+
+        self.velocity = direction
 
         if distance > 5:
             direction = direction.divide(distance)
-            self.position = self.position.add(direction.multiply(5))
+            self.position = self.position.add(direction.multiply(self.speed))
         else:
             fireworks.append(Firework(self.position))
             starters.remove(self)
 
     def draw(self, surface):
         self.position.draw(surface, self.color, 5)
+
+    def trail(self, surface):
+        trail_length = 30
+
+        for i in range(trail_length):
+            trail_color = (self.color)
+            trail_position = self.position.subtract(
+                self.velocity.multiply(i * 0.005)
+            )
+
+            pygame.draw.circle(
+                surface,
+                trail_color,
+                (int(trail_position.x), int(trail_position.y)),
+                2
+            )
 
 fireworks = []
 starters = []
@@ -134,6 +155,7 @@ while running:
     for starter in starters:
         starter.update()
         starter.draw(screen)
+        starter.trail(screen)
 
     for firework in fireworks:
         if firework.exploded == False:

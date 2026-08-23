@@ -57,10 +57,18 @@ class Firework:
     def __init__(self, position):
         self.position = position
         self.particles = []
+        self.exploded = False
 
-    
+    def explode(self):
+        for _ in range(100):
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(1, 5)
+            velocity = Vector(math.cos(angle) * speed, math.sin(angle) * speed)
+            color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+            lifetime = random.randint(30, 60)
+            self.particles.append(Particle(self.position, velocity, color, lifetime))
 
-balls = [Vector(WIDTH // 2, HEIGHT // 2)]
+fireworks = [Firework(Vector(WIDTH // 2, HEIGHT // 2))]
 radius = 25
 speed = 3
 
@@ -77,20 +85,19 @@ while running:
 
     mouse_pos = pygame.mouse.get_pos()
 
-    if pygame.mouse.get_pressed()[0]:
-        direction = Vector(
-            mouse_pos[0] - ball.x,
-            mouse_pos[1] - ball.y
-        )
+    for firework in fireworks:
+        if firework.exploded == False:
+            firework.explode()
+            firework.exploded = True
 
-    distance = direction.magnitude()
-
-    if distance > 0:
-        direction = direction.divide(distance)
-        ball = ball.add(direction.multiply(speed))
-
-    for ball in balls:
-        ball.draw(screen, "black", radius)
+        for particle in firework.particles:
+            particle.update()
+            particle.draw(screen)
+            if particle.lifetime <= 0:
+                firework.particles.remove(particle)
+            
+        if (firework.particles == []):
+            fireworks.remove(firework)
 
     fps = clock.get_fps()
     

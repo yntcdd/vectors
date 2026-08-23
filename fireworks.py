@@ -34,7 +34,10 @@ class Vector:
     def magnitude(self):
         return math.sqrt(self.x ** 2 + self.y ** 2)
 
-ball = Vector(WIDTH // 2, HEIGHT // 2)
+    def draw(self, surface, color, radius):
+        pygame.draw.circle(surface, color, (int(self.x), int(self.y)), radius)
+
+balls = [Vector(WIDTH // 2, HEIGHT // 2)]
 radius = 25
 speed = 3
 
@@ -63,12 +66,8 @@ while running:
         direction = direction.divide(distance)
         ball = ball.add(direction.multiply(speed))
 
-    pygame.draw.circle(
-        screen,
-        "black",
-        (int(ball.x), int(ball.y)),
-        radius
-    )
+    for ball in balls:
+        ball.draw(screen, "black", radius)
 
     fps = clock.get_fps()
     

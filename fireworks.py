@@ -57,12 +57,12 @@ class Particle:
 
     def trail(self, surface):
         if self.lifetime > 0:
-            trail_length = 20
+            trail_length = 15
 
             for i in range(trail_length):
                 trail_color = (self.color)
                 trail_position = self.position.subtract(
-                    self.velocity.multiply(i * 1)
+                    self.velocity.multiply(i * 1.3)
                 )
 
                 pygame.draw.circle(
@@ -81,17 +81,38 @@ class Firework:
 
     def explode(self):
 
-        amount = random.randint(100, 300)
+        amount = random.randint(100, 200)
 
         for i in range(amount):
             angle = random.uniform(0, 2 * math.pi)
-            speed = random.uniform(amount / 150, amount / 75)
+            speed = random.uniform(amount / 200, amount / 100)
             velocity = Vector(math.cos(angle) * speed, math.sin(angle) * speed)
             color = self.color
             lifetime = random.randint(5, 10)
             self.particles.append(Particle(self.position, velocity, color, lifetime))
 
+class Starter:
+    def __init__(self, position):
+        self.finalposition = position
+        self.position = Vector(WIDTH / 2, HEIGHT)
+        self.color = (255, 255, 255)
+
+    def update(self):
+        direction = self.finalposition.subtract(self.position)
+        distance = direction.magnitude()
+
+        if distance > 5:
+            direction = direction.divide(distance)
+            self.position = self.position.add(direction.multiply(5))
+        else:
+            fireworks.append(Firework(self.position))
+            starters.remove(self)
+
+    def draw(self, surface):
+        self.position.draw(surface, self.color, 5)
+
 fireworks = []
+starters = []
 radius = 25
 speed = 3
 
@@ -106,11 +127,13 @@ while running:
 
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
-                fireworks.append(
-                    Firework(Vector(event.pos[0], event.pos[1]))
-                )
+                starters.append(Starter(Vector(*event.pos)))
 
     screen.fill("black")
+
+    for starter in starters:
+        starter.update()
+        starter.draw(screen)
 
     for firework in fireworks:
         if firework.exploded == False:

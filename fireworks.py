@@ -32,11 +32,9 @@ class Vector:
         return Vector(self.x / scalar, self.y / scalar)
 
     def magnitude(self):
-        return math.sqrt(self.x ** 2 + self.y ** 2)
+        return math.sqrt(self.x * self.x + self.y * self.y)
 
-    def draw(self, surface, color, radius):
-        pygame.draw.circle(surface, color, (int(self.x), int(self.y)), radius)
-
+gravity = Vector(0, 0.01)
 
 class Particle:
     def __init__(self, position, velocity, color, lifetime):
@@ -46,14 +44,14 @@ class Particle:
         self.lifetime = lifetime
 
     def update(self):
-        gravity = Vector(0, 0.01)
         self.velocity = self.velocity.add(gravity)
         self.position = self.position.add(self.velocity)
         self.lifetime -= 0.05
 
     def draw(self, surface):
         if self.lifetime > 0:
-            self.position.draw(surface, self.color, 1)
+            pygame.draw.circle(surface, self.color, (int(self.position.x), int(self.position.y)), 1)
+
 
     def trail(self, surface):
         if self.lifetime > 0:
@@ -96,38 +94,37 @@ class Starter:
         self.finalposition = position
         self.position = Vector(WIDTH / 2, HEIGHT)
         self.color = (255, 255, 255)
-        self.velocity = Vector(0, -5)
-        self.speed = 5
+        self.velocity = Vector(0, 0)
 
     def update(self):
         direction = self.finalposition.subtract(self.position)
         distance = direction.magnitude()
-        self.speed = min(distance / 50, 5)
-
-        self.velocity = direction
 
         if distance > 5:
             direction = direction.divide(distance)
-            self.position = self.position.add(direction.multiply(self.speed))
+
+            self.velocity = direction.multiply(3)
+            self.velocity = self.velocity.subtract(gravity.multiply(75))
+
+            self.position = self.position.add(self.velocity)
         else:
             fireworks.append(Firework(self.position))
             starters.remove(self)
 
     def draw(self, surface):
-        self.position.draw(surface, self.color, 5)
+        pygame.draw.circle(surface, self.color, (int(self.position.x), int(self.position.y)), 5)
 
     def trail(self, surface):
-        trail_length = 30
+        trail_length = 0
 
         for i in range(trail_length):
-            trail_color = (self.color)
             trail_position = self.position.subtract(
-                self.velocity.multiply(i * 0.005)
+                self.velocity.multiply(i * 0.5)
             )
 
             pygame.draw.circle(
                 surface,
-                trail_color,
+                self.color,
                 (int(trail_position.x), int(trail_position.y)),
                 2
             )
@@ -152,29 +149,29 @@ while running:
 
     screen.fill("black")
 
-    for starter in starters:
+    for starter in starters[:]:
         starter.update()
         starter.draw(screen)
         starter.trail(screen)
 
-    for firework in fireworks:
-        if firework.exploded == False:
+    for firework in fireworks[:]:
+        if not firework.exploded:
             firework.explode()
             firework.exploded = True
 
-        for particle in firework.particles:
+        for particle in firework.particles[:]:
             particle.update()
             particle.draw(screen)
             particle.trail(screen)
+
             if particle.lifetime <= 0:
                 firework.particles.remove(particle)
-            
-        if (firework.particles == []):
+
+        if not firework.particles:
             fireworks.remove(firework)
 
     fps = clock.get_fps()
-    
-    fps_text = font.render(f"FPS: {fps:.2f}", True, (0, 0, 0))
+    fps_text = font.render(f"FPS: {fps:.2f}", True, (255, 255, 255))
     screen.blit(fps_text, (10, 10))
 
     clock.tick()

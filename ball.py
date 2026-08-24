@@ -34,11 +34,13 @@ class Vector:
     def magnitude(self):
         return math.sqrt(self.x ** 2 + self.y ** 2)
 
-ball = Vector(WIDTH // 2, HEIGHT // 2)
+ball = Vector(WIDTH, HEIGHT // 3)
 radius = 25
-speed = 3
+speed = 10
 
-direction = Vector(0, 0)
+direction = Vector(-1, 0)
+velocity = Vector(0, 0)
+gravity = Vector(0, 0.05)
 
 running = True
 
@@ -49,19 +51,6 @@ while running:
 
     screen.fill("white")
 
-    mouse_pos = pygame.mouse.get_pos()
-
-    if pygame.mouse.get_pressed()[0]:
-        direction = Vector(
-            mouse_pos[0] - ball.x,
-            mouse_pos[1] - ball.y
-        )
-
-    distance = direction.magnitude()
-
-    if distance > 0:
-        direction = direction.divide(distance)
-        ball = ball.add(direction.multiply(speed))
 
     pygame.draw.circle(
         screen,
@@ -70,12 +59,16 @@ while running:
         radius
     )
 
-    fps = clock.get_fps()
-    
-    fps_text = font.render(f"FPS: {fps:.2f}", True, (0, 0, 0))
-    screen.blit(fps_text, (10, 10))
+    ball = ball.add(direction.multiply(speed))
+    velocity = velocity.add(gravity)
 
-    clock.tick()
+    ball = ball.add(velocity)
+
+    if ball.y + radius > HEIGHT:
+        ball.y = HEIGHT // 3
+        ball.x = WIDTH
+        velocity = Vector(0, 0)
+        speed = random.randint(5, 15)
 
     pygame.display.flip()
 

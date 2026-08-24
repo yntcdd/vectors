@@ -103,7 +103,7 @@ class Starter:
         if distance > 5:
             direction = direction.divide(distance)
 
-            self.velocity = direction.multiply(3)
+            self.velocity = self.velocity 
             self.velocity = self.velocity.subtract(gravity.multiply(75))
 
             self.position = self.position.add(self.velocity)

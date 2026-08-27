@@ -34,13 +34,13 @@ class Vector:
     def magnitude(self):
         return math.sqrt(self.x ** 2 + self.y ** 2)
 
-ball = Vector(WIDTH, HEIGHT // 3)
+ball = Vector(WIDTH // 2, HEIGHT)
 radius = 25
-speed = 10
+speed = 2
 
 direction = Vector(-1, 0)
-velocity = Vector(0, 0)
-gravity = Vector(0, 0.05)
+velocity = Vector(0, -5)
+gravity = Vector(0, 0.03)
 
 running = True
 
@@ -64,11 +64,12 @@ while running:
 
     ball = ball.add(velocity)
 
-    if ball.y + radius > HEIGHT:
-        ball.y = HEIGHT // 3
-        ball.x = WIDTH
-        velocity = Vector(0, 0)
-        speed = random.randint(5, 15)
+    if ball.y > HEIGHT:
+        ball.y = HEIGHT
+        ball.x = WIDTH // 2
+        angle = random.uniform(-math.pi, 0)
+        launch_speed = random.uniform(3, 9)
+        velocity = Vector(math.cos(angle) * launch_speed, math.sin(angle) * launch_speed)
 
     pygame.display.flip()
 

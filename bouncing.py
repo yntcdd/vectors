@@ -21,7 +21,7 @@ LIGHT_BLUE = (173, 216, 230)
 DARKER_BLUE = (0, 0, 139)
 
 # Challenge text values (edit these to change the challenge).
-DAMAGE_BALL_NAME = "THE DAMAGER"
+DAMAGE_BALL_NAME = "FIBONACCI"
 BOSS_HP = "100"  # stored as a decimal string to support very large numbers
 TARGET_DAMAGE = BOSS_HP  # the target is to deal the boss's full HP in damage
 TIME_LIMIT = 60
@@ -35,6 +35,10 @@ challenge_lines = [
     [(f"in {TIME_LIMIT} seconds?", BLACK)],
 ]
 
+# Countdown timer: a ring on the right that drains as time runs out.
+TIMER_RADIUS = 30
+TIMER_BORDER = 8
+
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Bouncing Balls")
 
@@ -42,7 +46,8 @@ clock = pygame.time.Clock()
 
 font = pygame.font.Font(None, 28)
 label_font = pygame.font.Font(None, 36)
-challenge_font = pygame.font.Font(None, 42)
+challenge_font = pygame.font.Font(None, 40)  # the sentence, pushed left
+timer_font = pygame.font.Font(None, 36)      # the countdown number
 
 
 class Vector:
@@ -225,19 +230,20 @@ class DamageBall(Ball):
 
 
 class FibonacciBall(DamageBall):
-    # A damage ball whose damage follows the Fibonacci sequence: 1, 1, 2, 3, 5...
+    # A damage ball whose damage is a running sum of the Fibonacci sequence, so
+    # it goes 1, 2, 4, 7, 12, 20... (each hit adds the next Fibonacci number).
     def __init__(self, position, velocity):
         super().__init__(position, velocity, damage="1")
-        self.fib_prev = "1"         # the current Fibonacci number (the damage)
-        self.fib_before_prev = "0"  # the Fibonacci number before the current one
+        self.fib_prev = "1"         # the previous Fibonacci number in the sequence
+        self.fib_before_prev = "0"  # the Fibonacci number before that
 
     def deal_damage(self, target):
-        # Deal the current damage, then advance to the next Fibonacci number.
+        # Deal the current damage, then add the next Fibonacci number to it.
         target.take_damage(self.damage)
         next_fib = add_string(self.fib_prev, self.fib_before_prev)
         self.fib_before_prev = self.fib_prev
         self.fib_prev = next_fib
-        self.damage = next_fib
+        self.damage = add_string(self.damage, next_fib)
 
 
 damage_ball = FibonacciBall(
@@ -256,6 +262,7 @@ balls = [damage_ball, boss_ball]
 
 running = True
 balls_colliding = False
+start_ticks = pygame.time.get_ticks()  # when the countdown starts
 
 while running:
     for event in pygame.event.get():
@@ -314,14 +321,34 @@ while running:
     damage_text = label_font.render(f"Damage: {damage_ball.damage}", True, RED)
     screen.blit(damage_text, (SQUARE_X, SQUARE_Y + SQUARE_SIZE + 20))
 
-    # Challenge text centered between the top border and the arena.
+    # Challenge text pushed to the left, vertically centered above the arena.
     line_height = challenge_font.get_height()
     total_height = line_height * len(challenge_lines)
     start_y = SQUARE_Y // 2 - total_height // 2
     for i, segments in enumerate(challenge_lines):
         line_surface = render_text(segments, challenge_font)
-        screen.blit(line_surface, line_surface.get_rect(
-            center=(WIDTH // 2, start_y + i * line_height + line_height // 2)))
+        screen.blit(line_surface, (SQUARE_X, start_y + i * line_height))
+
+    # Countdown timer: a thick ring on the right that slowly loses its
+    # circumference as time runs out, with the seconds left inside.
+    timer_center = (WIDTH - TIMER_RADIUS, SQUARE_Y // 2)
+    timer_rect = (timer_center[0] - TIMER_RADIUS, timer_center[1] - TIMER_RADIUS,
+                  TIMER_RADIUS * 2, TIMER_RADIUS * 2)
+    time_left = max(0, TIME_LIMIT - (pygame.time.get_ticks() - start_ticks) // 1000)
+    remaining = time_left / TIME_LIMIT  # 1.0 at the start, 0.0 at the end
+
+    if remaining > 0.999:
+        # Full ring before any time has visibly drained.
+        pygame.draw.circle(screen, BLACK, timer_center, TIMER_RADIUS, TIMER_BORDER)
+    else:
+        # The remaining arc is anchored at the top (12 o'clock) and sweeps
+        # clockwise; its length shrinks as time runs out.
+        start_angle = math.pi / 2 - 2 * math.pi * remaining
+        pygame.draw.arc(screen, BLACK, timer_rect, start_angle, math.pi / 2,
+                        TIMER_BORDER)
+
+    timer_text = timer_font.render(str(time_left), True, BLACK)
+    screen.blit(timer_text, timer_text.get_rect(center=timer_center))
 
     clock.tick(60)
     pygame.display.flip()

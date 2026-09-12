@@ -36,7 +36,7 @@ challenge_lines = [
 ]
 
 # Countdown timer: a ring on the right that drains as time runs out.
-TIMER_RADIUS = 30
+TIMER_RADIUS = 28
 TIMER_BORDER = 8
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -46,7 +46,7 @@ clock = pygame.time.Clock()
 
 font = pygame.font.Font(None, 28)
 label_font = pygame.font.Font(None, 36)
-challenge_font = pygame.font.Font(None, 40)  # the sentence, pushed left
+challenge_font = pygame.font.Font(None, 38)  # the sentence, pushed left
 timer_font = pygame.font.Font(None, 36)      # the countdown number
 
 
@@ -331,7 +331,7 @@ while running:
 
     # Countdown timer: a thick ring on the right that slowly loses its
     # circumference as time runs out, with the seconds left inside.
-    timer_center = (WIDTH - TIMER_RADIUS, SQUARE_Y // 2)
+    timer_center = (WIDTH - TIMER_RADIUS - 10, SQUARE_Y // 2)  # 10px from the right edge
     timer_rect = (timer_center[0] - TIMER_RADIUS, timer_center[1] - TIMER_RADIUS,
                   TIMER_RADIUS * 2, TIMER_RADIUS * 2)
     time_left = max(0, TIME_LIMIT - (pygame.time.get_ticks() - start_ticks) // 1000)

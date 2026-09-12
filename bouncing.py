@@ -22,7 +22,8 @@ DARKER_BLUE = (0, 0, 139)
 
 # Challenge text values (edit these to change the challenge).
 DAMAGE_BALL_NAME = "THE DAMAGER"
-TARGET_DAMAGE = 10
+BOSS_HP = "100"  # stored as a decimal string to support very large numbers
+TARGET_DAMAGE = BOSS_HP  # the target is to deal the boss's full HP in damage
 TIME_LIMIT = 60
 
 # The challenge text updates automatically from the values above. It is split
@@ -87,6 +88,40 @@ def render_text(segments, font):
     return surface
 
 
+def strip_zeros(number):
+    # Remove leading zeros but always keep at least "0".
+    stripped = number.lstrip("0")
+    return stripped if stripped else "0"
+
+
+def subtract_string(a, b):
+    # Subtract two non-negative decimal strings digit by digit, like written
+    # subtraction. This works for any number of digits and never uses int().
+    a = strip_zeros(a)
+    b = strip_zeros(b)
+
+    # HP never goes below zero, so a bigger b simply gives "0".
+    if len(a) < len(b) or (len(a) == len(b) and a < b):
+        return "0"
+
+    # Pad b with leading zeros so both strings have the same length.
+    b = b.rjust(len(a), "0")
+
+    result = []
+    borrow = 0
+    for i in range(len(a) - 1, -1, -1):
+        digit = (ord(a[i]) - ord("0")) - (ord(b[i]) - ord("0")) - borrow
+        if digit < 0:
+            digit += 10
+            borrow = 1
+        else:
+            borrow = 0
+        result.append(chr(ord("0") + digit))
+
+    result.reverse()
+    return strip_zeros("".join(result))
+
+
 # Base radius, used by the damage ball (the boss ball scales off of this too).
 RADIUS = 25
 
@@ -106,7 +141,12 @@ class Ball:
         self.position = self.position.add(self.velocity)
 
     def take_damage(self, amount):
-        self.hp -= amount
+        self.hp = subtract_string(self.hp, amount)
+
+    def is_alive(self):
+        # A ball without HP (like the damage ball) is always alive; otherwise
+        # it lives until its HP reaches zero.
+        return self.hp is None or self.hp != "0"
 
     def bounce(self):
         # The square's border is the wall. Each ball's center bounces when it
@@ -142,7 +182,7 @@ class Ball:
 
         # HP centered inside the ball (only for balls that have HP).
         if self.hp is not None:
-            hp_text = font.render(str(self.hp), True, BLACK)
+            hp_text = font.render(self.hp, True, BLACK)
             surface.blit(hp_text, hp_text.get_rect(center=center))
 
 
@@ -150,7 +190,7 @@ damage_ball = Ball(
     Vector(SQUARE_X + SQUARE_SIZE // 3, SQUARE_Y + SQUARE_SIZE // 2),
     Vector(4, -3),
     hp=None,
-    damage=1,
+    damage="1",
     radius=1.3 * RADIUS,
     color=LIGHT_BLUE,
     outline_color=DARKER_BLUE,
@@ -158,8 +198,8 @@ damage_ball = Ball(
 boss_ball = Ball(
     Vector(SQUARE_X + 2 * SQUARE_SIZE // 3, SQUARE_Y + SQUARE_SIZE // 2),
     Vector(-1, 1),
-    hp=100,
-    damage=0,
+    hp=BOSS_HP,
+    damage="0",
     radius=(3 * RADIUS) / 1.3,
 )
 
@@ -181,36 +221,40 @@ while running:
     pygame.draw.rect(screen, WHITE, square_rect)
 
     for ball in balls:
-        ball.update()
-        ball.bounce()
+        if ball.is_alive():
+            ball.update()
+            ball.bounce()
 
     # Ball-to-ball collision: bounce apart and deal damage once per hit.
-    difference = damage_ball.position.subtract(boss_ball.position)
-    distance = difference.magnitude()
-    min_distance = damage_ball.radius + boss_ball.radius
+    if boss_ball.is_alive():
+        difference = damage_ball.position.subtract(boss_ball.position)
+        distance = difference.magnitude()
+        min_distance = damage_ball.radius + boss_ball.radius
 
-    if distance < min_distance:
-        # Unit normal pointing from the boss ball toward the damage ball.
-        normal = difference.divide(distance)
-        overlap = min_distance - distance
+        if distance < min_distance:
+            # Unit normal pointing from the boss ball toward the damage ball.
+            normal = difference.divide(distance)
+            overlap = min_distance - distance
 
-        # Push the balls apart so they never overlap or pass through each other.
-        damage_ball.position = damage_ball.position.add(normal.multiply(overlap / 2))
-        boss_ball.position = boss_ball.position.subtract(normal.multiply(overlap / 2))
+            # Push the balls apart so they never overlap or pass through each other.
+            damage_ball.position = damage_ball.position.add(normal.multiply(overlap / 2))
+            boss_ball.position = boss_ball.position.subtract(normal.multiply(overlap / 2))
 
-        if not balls_colliding:
-            balls_colliding = True
-            boss_ball.take_damage(damage_ball.damage)
+            if not balls_colliding:
+                balls_colliding = True
+                boss_ball.take_damage(damage_ball.damage)
 
-            # Arcade bounce: reflect each ball off the other. This changes each
-            # ball's direction but keeps its speed (velocity magnitude) constant.
-            damage_ball.velocity = reflect(damage_ball.velocity, normal)
-            boss_ball.velocity = reflect(boss_ball.velocity, normal)
-    else:
-        balls_colliding = False
+                # Arcade bounce: reflect each ball off the other. This changes
+                # each ball's direction but keeps its speed (velocity magnitude)
+                # constant.
+                damage_ball.velocity = reflect(damage_ball.velocity, normal)
+                boss_ball.velocity = reflect(boss_ball.velocity, normal)
+        else:
+            balls_colliding = False
 
     for ball in balls:
-        ball.draw(screen)
+        if ball.is_alive():
+            ball.draw(screen)
 
     # The square's border is black.
     pygame.draw.rect(screen, BLACK, square_rect, 2)

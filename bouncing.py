@@ -20,13 +20,28 @@ RED = (255, 0, 0)
 LIGHT_BLUE = (173, 216, 230)
 DARKER_BLUE = (0, 0, 139)
 
+# Challenge text values (edit these to change the challenge).
+DAMAGE_BALL_NAME = "THE DAMAGER"
+TARGET_DAMAGE = 10
+TIME_LIMIT = 60
+
+# The challenge text updates automatically from the values above. It is split
+# into two lines so it can be drawn big and still fit the window. Each line is
+# a list of (text, color) segments; the name is highlighted in red.
+challenge_lines = [
+    [("Can ", BLACK), (DAMAGE_BALL_NAME, RED),
+     (f" deal {TARGET_DAMAGE} damage", BLACK)],
+    [(f"in {TIME_LIMIT} seconds?", BLACK)],
+]
+
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Bouncing Balls")
 
 clock = pygame.time.Clock()
 
 font = pygame.font.Font(None, 28)
-label_font = pygame.font.Font(None, 32)
+label_font = pygame.font.Font(None, 36)
+challenge_font = pygame.font.Font(None, 42)
 
 
 class Vector:
@@ -48,6 +63,28 @@ class Vector:
 
     def magnitude(self):
         return math.sqrt(self.x ** 2 + self.y ** 2)
+
+    def dot(self, other):
+        return self.x * other.x + self.y * other.y
+
+
+def reflect(velocity, normal):
+    # Reflect velocity across the surface with the given unit normal. This
+    # changes the direction but keeps the speed (magnitude) unchanged.
+    return velocity.subtract(normal.multiply(2 * velocity.dot(normal)))
+
+
+def render_text(segments, font):
+    # Render a list of (text, color) segments side by side into one surface.
+    pieces = [font.render(text, True, color) for text, color in segments]
+    width = sum(piece.get_width() for piece in pieces)
+    height = max(piece.get_height() for piece in pieces)
+    surface = pygame.Surface((width, height), pygame.SRCALPHA)
+    x = 0
+    for piece in pieces:
+        surface.blit(piece, (x, 0))
+        x += piece.get_width()
+    return surface
 
 
 # Base radius, used by the damage ball (the boss ball scales off of this too).
@@ -152,21 +189,24 @@ while running:
     distance = difference.magnitude()
     min_distance = damage_ball.radius + boss_ball.radius
 
-    if distance < min_distance and not balls_colliding:
-        balls_colliding = True
-        boss_ball.take_damage(damage_ball.damage)
+    if distance < min_distance:
+        # Unit normal pointing from the boss ball toward the damage ball.
+        normal = difference.divide(distance)
+        overlap = min_distance - distance
 
-        # Arcade bounce: swap directions but keep each ball's own speed, so
-        # every ball's velocity magnitude stays constant.
-        damage_speed = damage_ball.velocity.magnitude()
-        boss_speed = boss_ball.velocity.magnitude()
+        # Push the balls apart so they never overlap or pass through each other.
+        damage_ball.position = damage_ball.position.add(normal.multiply(overlap / 2))
+        boss_ball.position = boss_ball.position.subtract(normal.multiply(overlap / 2))
 
-        damage_direction = damage_ball.velocity.divide(damage_speed)
-        boss_direction = boss_ball.velocity.divide(boss_speed)
+        if not balls_colliding:
+            balls_colliding = True
+            boss_ball.take_damage(damage_ball.damage)
 
-        damage_ball.velocity = boss_direction.multiply(damage_speed)
-        boss_ball.velocity = damage_direction.multiply(boss_speed)
-    elif distance >= min_distance:
+            # Arcade bounce: reflect each ball off the other. This changes each
+            # ball's direction but keeps its speed (velocity magnitude) constant.
+            damage_ball.velocity = reflect(damage_ball.velocity, normal)
+            boss_ball.velocity = reflect(boss_ball.velocity, normal)
+    else:
         balls_colliding = False
 
     for ball in balls:
@@ -178,6 +218,15 @@ while running:
     # Damage display under the left side of the arena.
     damage_text = label_font.render(f"Damage: {damage_ball.damage}", True, RED)
     screen.blit(damage_text, (SQUARE_X, SQUARE_Y + SQUARE_SIZE + 20))
+
+    # Challenge text centered between the top border and the arena.
+    line_height = challenge_font.get_height()
+    total_height = line_height * len(challenge_lines)
+    start_y = SQUARE_Y // 2 - total_height // 2
+    for i, segments in enumerate(challenge_lines):
+        line_surface = render_text(segments, challenge_font)
+        screen.blit(line_surface, line_surface.get_rect(
+            center=(WIDTH // 2, start_y + i * line_height + line_height // 2)))
 
     clock.tick(60)
     pygame.display.flip()

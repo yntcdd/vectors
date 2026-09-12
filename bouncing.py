@@ -17,6 +17,8 @@ BEIGE = (245, 245, 220)
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
+LIGHT_BLUE = (173, 216, 230)
+DARKER_BLUE = (0, 0, 139)
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Bouncing Balls")
@@ -48,23 +50,20 @@ class Vector:
         return math.sqrt(self.x ** 2 + self.y ** 2)
 
 
+# Base radius, used by the damage ball (the boss ball scales off of this too).
 RADIUS = 25
-
-# The square's border is the wall. The ball's center bounces when it is one
-# radius away from the wall, so the ball never overlaps or passes the border.
-LEFT_WALL = SQUARE_X + RADIUS
-RIGHT_WALL = SQUARE_X + SQUARE_SIZE - RADIUS
-TOP_WALL = SQUARE_Y + RADIUS
-BOTTOM_WALL = SQUARE_Y + SQUARE_SIZE - RADIUS
 
 
 class Ball:
-    def __init__(self, position, velocity, hp, damage, radius=RADIUS):
+    def __init__(self, position, velocity, hp, damage, radius=RADIUS,
+                 color=WHITE, outline_color=BLACK):
         self.position = position
         self.velocity = velocity
         self.radius = radius
         self.hp = hp
         self.damage = damage
+        self.color = color
+        self.outline_color = outline_color
 
     def update(self):
         self.position = self.position.add(self.velocity)
@@ -73,45 +72,58 @@ class Ball:
         self.hp -= amount
 
     def bounce(self):
+        # The square's border is the wall. Each ball's center bounces when it
+        # is one of its own radii away from the wall, so a larger ball still
+        # can't pass through the border.
+        left = SQUARE_X + self.radius
+        right = SQUARE_X + SQUARE_SIZE - self.radius
+        top = SQUARE_Y + self.radius
+        bottom = SQUARE_Y + SQUARE_SIZE - self.radius
+
         # Left and right walls.
-        if self.position.x < LEFT_WALL:
-            self.position.x = LEFT_WALL
+        if self.position.x < left:
+            self.position.x = left
             self.velocity.x = -self.velocity.x
-        elif self.position.x > RIGHT_WALL:
-            self.position.x = RIGHT_WALL
+        elif self.position.x > right:
+            self.position.x = right
             self.velocity.x = -self.velocity.x
 
         # Top and bottom walls.
-        if self.position.y < TOP_WALL:
-            self.position.y = TOP_WALL
+        if self.position.y < top:
+            self.position.y = top
             self.velocity.y = -self.velocity.y
-        elif self.position.y > BOTTOM_WALL:
-            self.position.y = BOTTOM_WALL
+        elif self.position.y > bottom:
+            self.position.y = bottom
             self.velocity.y = -self.velocity.y
 
     def draw(self, surface):
         center = (int(self.position.x), int(self.position.y))
 
-        # White body with a black outline.
-        pygame.draw.circle(surface, WHITE, center, self.radius)
-        pygame.draw.circle(surface, BLACK, center, self.radius, 2)
+        # Body with an outline.
+        pygame.draw.circle(surface, self.color, center, self.radius)
+        pygame.draw.circle(surface, self.outline_color, center, self.radius, 2)
 
-        # HP centered inside the ball.
-        hp_text = font.render(str(self.hp), True, BLACK)
-        surface.blit(hp_text, hp_text.get_rect(center=center))
+        # HP centered inside the ball (only for balls that have HP).
+        if self.hp is not None:
+            hp_text = font.render(str(self.hp), True, BLACK)
+            surface.blit(hp_text, hp_text.get_rect(center=center))
 
 
 damage_ball = Ball(
     Vector(SQUARE_X + SQUARE_SIZE // 3, SQUARE_Y + SQUARE_SIZE // 2),
     Vector(4, -3),
-    hp=100,
+    hp=None,
     damage=1,
+    radius=1.3 * RADIUS,
+    color=LIGHT_BLUE,
+    outline_color=DARKER_BLUE,
 )
 boss_ball = Ball(
     Vector(SQUARE_X + 2 * SQUARE_SIZE // 3, SQUARE_Y + SQUARE_SIZE // 2),
-    Vector(-3, 5),
+    Vector(-1, 1),
     hp=100,
     damage=0,
+    radius=(3 * RADIUS) / 1.3,
 )
 
 balls = [damage_ball, boss_ball]
@@ -143,7 +155,17 @@ while running:
     if distance < min_distance and not balls_colliding:
         balls_colliding = True
         boss_ball.take_damage(damage_ball.damage)
-        damage_ball.velocity, boss_ball.velocity = boss_ball.velocity, damage_ball.velocity
+
+        # Arcade bounce: swap directions but keep each ball's own speed, so
+        # every ball's velocity magnitude stays constant.
+        damage_speed = damage_ball.velocity.magnitude()
+        boss_speed = boss_ball.velocity.magnitude()
+
+        damage_direction = damage_ball.velocity.divide(damage_speed)
+        boss_direction = boss_ball.velocity.divide(boss_speed)
+
+        damage_ball.velocity = boss_direction.multiply(damage_speed)
+        boss_ball.velocity = damage_direction.multiply(boss_speed)
     elif distance >= min_distance:
         balls_colliding = False
 

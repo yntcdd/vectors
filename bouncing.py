@@ -16,12 +16,15 @@ SQUARE_Y = (HEIGHT - SQUARE_SIZE) // 2   # 230
 BEIGE = (245, 245, 220)
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-BLUE = (0, 0, 255)
+RED = (255, 0, 0)
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Bouncing Balls")
 
 clock = pygame.time.Clock()
+
+font = pygame.font.Font(None, 28)
+label_font = pygame.font.Font(None, 32)
 
 
 class Vector:
@@ -56,13 +59,18 @@ BOTTOM_WALL = SQUARE_Y + SQUARE_SIZE - RADIUS
 
 
 class Ball:
-    def __init__(self, position, velocity, radius=RADIUS):
+    def __init__(self, position, velocity, hp, damage, radius=RADIUS):
         self.position = position
         self.velocity = velocity
         self.radius = radius
+        self.hp = hp
+        self.damage = damage
 
     def update(self):
         self.position = self.position.add(self.velocity)
+
+    def take_damage(self, amount):
+        self.hp -= amount
 
     def bounce(self):
         # Left and right walls.
@@ -82,26 +90,34 @@ class Ball:
             self.velocity.y = -self.velocity.y
 
     def draw(self, surface):
-        pygame.draw.circle(
-            surface,
-            BLUE,
-            (int(self.position.x), int(self.position.y)),
-            self.radius,
-        )
+        center = (int(self.position.x), int(self.position.y))
+
+        # White body with a black outline.
+        pygame.draw.circle(surface, WHITE, center, self.radius)
+        pygame.draw.circle(surface, BLACK, center, self.radius, 2)
+
+        # HP centered inside the ball.
+        hp_text = font.render(str(self.hp), True, BLACK)
+        surface.blit(hp_text, hp_text.get_rect(center=center))
 
 
-balls = [
-    Ball(
-        Vector(SQUARE_X + SQUARE_SIZE // 3, SQUARE_Y + SQUARE_SIZE // 2),
-        Vector(4, -3),
-    ),
-    Ball(
-        Vector(SQUARE_X + 2 * SQUARE_SIZE // 3, SQUARE_Y + SQUARE_SIZE // 2),
-        Vector(-3, 5),
-    ),
-]
+damage_ball = Ball(
+    Vector(SQUARE_X + SQUARE_SIZE // 3, SQUARE_Y + SQUARE_SIZE // 2),
+    Vector(4, -3),
+    hp=100,
+    damage=1,
+)
+boss_ball = Ball(
+    Vector(SQUARE_X + 2 * SQUARE_SIZE // 3, SQUARE_Y + SQUARE_SIZE // 2),
+    Vector(-3, 5),
+    hp=100,
+    damage=0,
+)
+
+balls = [damage_ball, boss_ball]
 
 running = True
+balls_colliding = False
 
 while running:
     for event in pygame.event.get():
@@ -118,10 +134,28 @@ while running:
     for ball in balls:
         ball.update()
         ball.bounce()
+
+    # Ball-to-ball collision: bounce apart and deal damage once per hit.
+    difference = damage_ball.position.subtract(boss_ball.position)
+    distance = difference.magnitude()
+    min_distance = damage_ball.radius + boss_ball.radius
+
+    if distance < min_distance and not balls_colliding:
+        balls_colliding = True
+        boss_ball.take_damage(damage_ball.damage)
+        damage_ball.velocity, boss_ball.velocity = boss_ball.velocity, damage_ball.velocity
+    elif distance >= min_distance:
+        balls_colliding = False
+
+    for ball in balls:
         ball.draw(screen)
 
     # The square's border is black.
     pygame.draw.rect(screen, BLACK, square_rect, 2)
+
+    # Damage display under the left side of the arena.
+    damage_text = label_font.render(f"Damage: {damage_ball.damage}", True, RED)
+    screen.blit(damage_text, (SQUARE_X, SQUARE_Y + SQUARE_SIZE + 20))
 
     clock.tick(60)
     pygame.display.flip()

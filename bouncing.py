@@ -244,11 +244,13 @@ while running:
                 balls_colliding = True
                 boss_ball.take_damage(damage_ball.damage)
 
-                # Arcade bounce: reflect each ball off the other. This changes
-                # each ball's direction but keeps its speed (velocity magnitude)
-                # constant.
-                damage_ball.velocity = reflect(damage_ball.velocity, normal)
-                boss_ball.velocity = reflect(boss_ball.velocity, normal)
+                # Arcade bounce: reverse each ball's motion along the normal
+                # only when it is moving toward the other ball. This keeps each
+                # ball's speed constant and always bounces them apart.
+                if damage_ball.velocity.dot(normal) < 0:
+                    damage_ball.velocity = reflect(damage_ball.velocity, normal)
+                if boss_ball.velocity.dot(normal) > 0:
+                    boss_ball.velocity = reflect(boss_ball.velocity, normal)
         else:
             balls_colliding = False
 

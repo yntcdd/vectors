@@ -122,6 +122,31 @@ def subtract_string(a, b):
     return strip_zeros("".join(result))
 
 
+def add_string(a, b):
+    # Add two non-negative decimal strings digit by digit, like written
+    # addition. This works for any number of digits and never uses int().
+    a = strip_zeros(a)
+    b = strip_zeros(b)
+
+    # Pad the shorter string with leading zeros so both have the same length.
+    length = max(len(a), len(b))
+    a = a.rjust(length, "0")
+    b = b.rjust(length, "0")
+
+    result = []
+    carry = 0
+    for i in range(length - 1, -1, -1):
+        total = (ord(a[i]) - ord("0")) + (ord(b[i]) - ord("0")) + carry
+        result.append(chr(ord("0") + (total % 10)))
+        carry = total // 10
+
+    if carry:
+        result.append(chr(ord("0") + carry))
+
+    result.reverse()
+    return strip_zeros("".join(result))
+
+
 # Base radius, used by the damage ball (the boss ball scales off of this too).
 RADIUS = 25
 
@@ -186,14 +211,38 @@ class Ball:
             surface.blit(hp_text, hp_text.get_rect(center=center))
 
 
-damage_ball = Ball(
+class DamageBall(Ball):
+    # A ball that deals damage to the boss. It has no HP of its own.
+    def __init__(self, position, velocity, damage="1",
+                 radius=1.3 * RADIUS, color=LIGHT_BLUE,
+                 outline_color=DARKER_BLUE):
+        super().__init__(position, velocity, hp=None, damage=damage,
+                         radius=radius, color=color, outline_color=outline_color)
+
+    def deal_damage(self, target):
+        # Apply this ball's damage to the target once.
+        target.take_damage(self.damage)
+
+
+class FibonacciBall(DamageBall):
+    # A damage ball whose damage follows the Fibonacci sequence: 1, 1, 2, 3, 5...
+    def __init__(self, position, velocity):
+        super().__init__(position, velocity, damage="1")
+        self.fib_prev = "1"         # the current Fibonacci number (the damage)
+        self.fib_before_prev = "0"  # the Fibonacci number before the current one
+
+    def deal_damage(self, target):
+        # Deal the current damage, then advance to the next Fibonacci number.
+        target.take_damage(self.damage)
+        next_fib = add_string(self.fib_prev, self.fib_before_prev)
+        self.fib_before_prev = self.fib_prev
+        self.fib_prev = next_fib
+        self.damage = next_fib
+
+
+damage_ball = FibonacciBall(
     Vector(SQUARE_X + SQUARE_SIZE // 3, SQUARE_Y + SQUARE_SIZE // 2),
     Vector(4, -3),
-    hp=None,
-    damage="1",
-    radius=1.3 * RADIUS,
-    color=LIGHT_BLUE,
-    outline_color=DARKER_BLUE,
 )
 boss_ball = Ball(
     Vector(SQUARE_X + 2 * SQUARE_SIZE // 3, SQUARE_Y + SQUARE_SIZE // 2),
@@ -242,7 +291,7 @@ while running:
 
             if not balls_colliding:
                 balls_colliding = True
-                boss_ball.take_damage(damage_ball.damage)
+                damage_ball.deal_damage(boss_ball)
 
                 # Arcade bounce: reverse each ball's motion along the normal
                 # only when it is moving toward the other ball. This keeps each

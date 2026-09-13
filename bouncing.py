@@ -22,7 +22,7 @@ DARKER_BLUE = (0, 0, 139)
 
 # Challenge text values (edit these to change the challenge).
 DAMAGE_BALL_NAME = "FIBONACCI"
-BOSS_HP = "100"  # stored as a decimal string to support very large numbers
+BOSS_HP = "10000"  # stored as a decimal string to support very large numbers
 TARGET_DAMAGE = BOSS_HP  # the target is to deal the boss's full HP in damage
 TIME_LIMIT = 60
 
@@ -230,20 +230,32 @@ class DamageBall(Ball):
 
 
 class FibonacciBall(DamageBall):
-    # A damage ball whose damage is a running sum of the Fibonacci sequence, so
-    # it goes 1, 2, 4, 7, 12, 20... (each hit adds the next Fibonacci number).
+    # A damage ball whose damage IS the Fibonacci sequence: 1, 1, 2, 3, 5, 8...
     def __init__(self, position, velocity):
         super().__init__(position, velocity, damage="1")
         self.fib_prev = "1"         # the previous Fibonacci number in the sequence
         self.fib_before_prev = "0"  # the Fibonacci number before that
 
-    def deal_damage(self, target):
-        # Deal the current damage, then add the next Fibonacci number to it.
-        target.take_damage(self.damage)
+    def next_fib(self):
+        # Advance to the next Fibonacci number and return it.
         next_fib = add_string(self.fib_prev, self.fib_before_prev)
         self.fib_before_prev = self.fib_prev
         self.fib_prev = next_fib
-        self.damage = add_string(self.damage, next_fib)
+        return next_fib
+
+    def deal_damage(self, target):
+        # Deal the current damage, then advance to the next Fibonacci number.
+        target.take_damage(self.damage)
+        self.damage = self.next_fib()
+
+
+class FibonacciSumBall(FibonacciBall):
+    # A damage ball whose damage is a running SUM of the Fibonacci sequence, so
+    # it goes 1, 2, 4, 7, 12, 20... (each hit adds the next Fibonacci number).
+    def deal_damage(self, target):
+        # Deal the current damage, then add the next Fibonacci number to it.
+        target.take_damage(self.damage)
+        self.damage = add_string(self.damage, self.next_fib())
 
 
 damage_ball = FibonacciBall(

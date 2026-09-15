@@ -49,7 +49,6 @@ label_font = pygame.font.Font(None, 36)
 challenge_font = pygame.font.Font(None, 38)  # the sentence, pushed left
 timer_font = pygame.font.Font(None, 36)      # the countdown number
 
-
 class Vector:
     def __init__(self, x, y):
         self.x = x
